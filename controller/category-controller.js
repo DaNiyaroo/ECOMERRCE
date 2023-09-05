@@ -25,7 +25,7 @@ async function post(req, res, next) {
 async function findAll(req, res) {
   try {
     const currentPage = parseInt(req.query.currentPage) || 1; 
-    const paginationLimitFromQuery = parseInt(req.query.paginationLimit) || 10; 
+    const paginationLimitFromQuery = parseInt(req.query.paginationLimit) || 15; 
 
     const getTotalItemsQuery = 'SELECT COUNT(*) AS total FROM category';
     const [totalResult] = await pool.query(getTotalItemsQuery);
