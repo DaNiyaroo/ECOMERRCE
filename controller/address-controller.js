@@ -1,20 +1,48 @@
 const pool = require('../db/db.config.js');
+const Pagination = require("../utils/pagination.js")
 
-async function getAddress(req, res, next){
-    try {
-        const getAllAddress = 'SELECT * FROM address'
-        const address= await pool.query(getAllAddress)
-        res.status(200).json({success:true, data: address})  
-    } catch (error) {
-      next(error)
+async function getAddress(req, res) {
+  try {
+    const currentPage = parseInt(req.query.currentPage) || 1;
+    const paginationLimit = parseInt(req.query.limit) || 10; 
+
+    const getTotalItemsQuery = 'SELECT COUNT(*) AS total FROM address';
+    const [totalResult] = await pool.query(getTotalItemsQuery);
+    const totalItems = totalResult[0].total;
+
+    const pagination = new Pagination(currentPage, paginationLimit, totalItems);
+
+    const limit = pagination.limit;
+    const offset = pagination.offset;
+
+    const getItemsQuery = 'SELECT * FROM address LIMIT ? OFFSET ?';
+    const [result] = await pool.query(getItemsQuery, [limit, offset]);
+
+    if (result.length === 0) {
+      throw new Error('Address not found');
     }
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 }
 
 async function postAddress(req, res, next) {
     try {
-      const { region,	referencePoint,	street,	house,room } = req.body;
+      const { userID, region,	referencePoint,	street,	house,room } = req.body;
   
+      if (userID) {
+        const [[user]] = await pool.query("SELECT * FROM user WHERE user.ID = ?", userID)
+        if (!user) {
+          const error = new Error(`user with ID ${userID} not found`);
+          error.statusCode = 404;
+          throw error;
+        }
+      }
+
       const newAddress = {
+
         region:region,
         referencePoint:referencePoint,
         street:street,
@@ -25,6 +53,9 @@ async function postAddress(req, res, next) {
       const insertAddressQuery = 'INSERT INTO address SET ?';
       await pool.query(insertAddressQuery, newAddress);
   
+      const addAddressIdtoUserIdQuery = "SELECT user.ID FROM user LEFT JOIN address ON user.ID = address.userID"
+      await pool.query(addAddressIdtoUserIdQuery)
+
       res.status(200).json({ success: true, message: 'Address added successfully' });
     } catch (error) {
       next(error)

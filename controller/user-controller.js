@@ -1,14 +1,33 @@
 const pool = require('../db/db.config.js')
 const bcrypt = require('bcryptjs')
+const Pagination = require("../utils/pagination.js")
 
-async function getUser(req, res, next){
-    try {
-        const getAllUsers = 'SELECT * FROM user'
-        const user = await pool.query(getAllUsers)
-        res.status(200).json({success:true, data: user})  
-    } catch (error) {
-       next(error)
+async function getUser(req, res) {
+  try {
+    const currentPage = parseInt(req.query.currentPage) || 1; 
+    const paginationLimit = parseInt(req.query.limit) || 10; 
+
+    
+    const getTotalItemsQuery = 'SELECT COUNT(*) AS total FROM user';
+    const [totalResult] = await pool.query(getTotalItemsQuery);
+    const totalItems = totalResult[0].total;
+
+    const pagination = new Pagination(currentPage, paginationLimit, totalItems);
+
+    const limit = pagination.limit;
+    const offset = pagination.offset;
+
+    const getItemsQuery = 'SELECT * FROM user LIMIT ? OFFSET ?';
+    const [result] = await pool.query(getItemsQuery, [limit, offset]);
+
+    if (result.length === 0) {
+      throw new Error('user not found');
     }
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 }
 
 async function postUser(req, res, next) {

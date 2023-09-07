@@ -24,14 +24,15 @@ async function post(req, res, next) {
 
 async function findAll(req, res) {
   try {
-    const currentPage = parseInt(req.query.currentPage) || 1; 
-    const paginationLimitFromQuery = parseInt(req.query.paginationLimit) || 15; 
+    const currentPage = parseInt(req.query.currentPage) || 1;
+    const paginationLimit = parseInt(req.query.limit) || 10; 
 
     const getTotalItemsQuery = 'SELECT COUNT(*) AS total FROM category';
     const [totalResult] = await pool.query(getTotalItemsQuery);
     const totalItems = totalResult[0].total;
 
-    const pagination = new Pagination(currentPage, paginationLimitFromQuery, totalItems);
+    const pagination = new Pagination(currentPage, paginationLimit, totalItems);
+
     const limit = pagination.limit;
     const offset = pagination.offset;
 
