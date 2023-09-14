@@ -4,21 +4,35 @@ const Pagination = require('../utils/pagination.js');
 
 async function post(req, res, next) {
   try {
-    const { nameUz, nameRu, desUz, desRu, image, parentCategoryID } = req.body;
-    const params = { nameUz, nameRu, desUz, desRu, image, parentCategoryID }
+    const { nameUz, nameRu, descUz, descRu, image, parentCategoryID, productID, attributeID } = req.body;
+    const params = { nameUz, nameRu, descUz, descRu, image, parentCategoryID };
+
     if (parentCategoryID) {
-      const [[category]] = await pool.query("SELECT * FROM category WHERE ID = ?", parentCategoryID)
+      const [[category]] = await pool.query("SELECT * FROM category WHERE ID = ?", [parentCategoryID]);
       if (!category) {
         const error = new Error(`Category with ID ${parentCategoryID} not found`);
         error.statusCode = 404;
         throw error;
       }
     }
-    const query = "INSERT INTO category SET ?"
-    await pool.query(query,params)
-    res.send('Successfully created')
+
+    const query = "INSERT INTO category SET ?";
+    const [result] = await pool.query(query, params);
+    const categoryID = result.insertId;
+
+    if (productID) {
+      const insertQuery = "INSERT INTO category_product (product_ID, category_ID) VALUES (?, ?)";
+      await pool.query(insertQuery, [productID, categoryID]);
+    }
+
+    if (attributeID) {
+      const insertAttributeQuery = "INSERT INTO category_attribute (category_ID, attribute_ID) VALUES (?, ?)";
+      await pool.query(insertAttributeQuery, [categoryID, attributeID]);
+    }
+
+    res.send('Successfully created');
   } catch (error) {
-    next(error); 
+    next(error);
   }
 }
 
@@ -40,7 +54,9 @@ async function findAll(req, res) {
     const [result] = await pool.query(getItemsQuery, [limit, offset]);
 
     if (result.length === 0) {
-      throw new Error('Category not found');
+      const error = new Error('Category not found');
+      error.statusCode = 404
+      throw error
     }
 
     res.send(result);
@@ -69,7 +85,7 @@ async function getById(req, res, next) {
 
 async function put(req, res, next) {
   try {
-    const { nameUz, nameRu, desUz, desRu, image, parentCategoryID } = req.body;
+    const { nameUz, nameRu, descUz, descRu, image, parentCategoryID } = req.body;
     const id = req.params.id;
 
     if (parentCategoryID) {
@@ -95,18 +111,18 @@ async function put(req, res, next) {
     const updatedCategory = {
       nameUz: nameUz !== undefined ? nameUz : category[0].nameUz,
       nameRu: nameRu !== undefined ? nameRu : category[0].nameRu,
-      desUz: desUz !== undefined ? desUz : category[0].desUz,
-      desRu: desRu !== undefined ? desRu : category[0].desRu,
+      descUz: descUz !== undefined ? descUz : category[0].descUz,
+      descRu: descRu !== undefined ? descRu : category[0].descRu,
       image: image !== undefined ? image : category[0].image,
       parentCategoryID: parentCategoryID !== undefined ? parentCategoryID : category[0].parentCategoryID
     };
     
-    const updateCategoryQuery = 'UPDATE category SET nameUz = ?, nameRu = ?, desUz = ?, desRu = ?, image = ?, parentCategoryID = ? WHERE ID = ?';
+    const updateCategoryQuery = 'UPDATE category SET nameUz = ?, nameRu = ?, descUz = ?, descRu = ?, image = ?, parentCategoryID = ? WHERE ID = ?';
     const updateParams = [
       updatedCategory.nameUz !== undefined ? updatedCategory.nameUz : null,
       updatedCategory.nameRu !== undefined ? updatedCategory.nameRu : null,
-      updatedCategory.desUz !== undefined ? updatedCategory.desUz : null,
-      updatedCategory.desRu !== undefined ? updatedCategory.desRu : null,
+      updatedCategory.descUz !== undefined ? updatedCategory.descUz : null,
+      updatedCategory.descRu !== undefined ? updatedCategory.descRu : null,
       updatedCategory.image !== undefined ? updatedCategory.image : null,
       updatedCategory.parentCategoryID !== undefined ? updatedCategory.parentCategoryID : null,
     ];
